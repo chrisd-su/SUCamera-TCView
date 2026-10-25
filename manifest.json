@@ -12,7 +12,7 @@
     {
       "type": "VIEWER_SIDE_PANEL",
       "title": "Camera Importer",
-      "icon": "https://your-domain.com/icon.png"
+      
     }
   ],
   "scopes": [
