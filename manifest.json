@@ -1,0 +1,22 @@
+{
+  "id": "com.yourcompany.sketchup-camera-importer",
+  "name": "SketchUp Camera Importer",
+  "version": "1.0.0",
+  "description": "Import camera coordinates from SketchUp JSON and create Trimble Connect Views.",
+  "publisher": {
+    "name": "Your Company Name",
+    "url": "https://your-company.com"
+  },
+  "entryPoint": "https://your-domain.com/index.html",
+  "extensionPoints": [
+    {
+      "type": "VIEWER_SIDE_PANEL",
+      "title": "Camera Importer",
+      "icon": "https://your-domain.com/icon.png"
+    }
+  ],
+  "scopes": [
+    "viewer",
+    "views"
+  ]
+}
