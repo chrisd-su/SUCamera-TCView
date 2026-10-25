@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SketchUp Scene Importer</title>
+  <!-- Load Trimble Connect Workspace API SDK -->
+  <script src="https://components.connect.trimble.com/trimble-connect-workspace-api/index.js"></script>
+  
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 16px;
+      background-color: #f8f9fa;
+      color: #333;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .drop-zone {
+      border: 2px dashed #0063a3;
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      background-color: #ffffff;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+    .drop-zone:hover {
+      background-color: #e8f4fc;
+    }
+    button {
+      background-color: #0063a3;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 4px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+    #status {
+      font-size: 13px;
+      margin-top: 8px;
+      line-height: 1.4;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h3>Import SketchUp Cameras</h3>
+  
+  <div class="drop-zone" id="dropZone">
+    <p>Drop <strong>sketchup_cameras.json</strong> file here<br>or click to upload</p>
+    <input type="file" id="fileInput" accept=".json" style="display: none;">
+  </div>
+
+  <button id="importBtn" disabled>Create TC Views</button>
+  
+  <div id="status">Connecting to Trimble Connect...</div>
+</div>
+
+<script>
+  let api = null;
+  let parsedScenes = [];
+
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+  const importBtn = document.getElementById('importBtn');
+  const statusDiv = document.getElementById('status');
+
+  // 1. Initialize Workspace API Connection
+  async function initAPI() {
+    try {
+      // Connect to the parent Trimble Connect 3D Viewer iframe
+      api = await TrimbleConnectWorkspaceApi.connect(window.parent);
+      statusDiv.innerText = "Connected to 3D Viewer. Select a JSON file to begin.";
+    } catch (err) {
+      statusDiv.innerText = "Error connecting to Workspace API:\n" + err.message;
+      console.error("Connection failed", err);
+    }
+  }
+
+  // 2. Handle File Input Selection & Reading
+  dropZone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.style.backgroundColor = '#e8f4fc';
+  });
+
+  dropZone.addEventListener('dragleave', () => {
+    dropZone.style.backgroundColor = '#ffffff';
+  });
+
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.style.backgroundColor = '#ffffff';
+    handleFiles(e.dataTransfer.files);
+  });
+
+  function handleFiles(files) {
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target.result);
+        if (json.scenes && Array.isArray(json.scenes)) {
+          parsedScenes = json.scenes;
+          statusDiv.innerText = `Loaded ${parsedScenes.length} scenes from "${file.name}". Click "Create TC Views" to process.`;
+          importBtn.disabled = false;
+        } else {
+          throw new Error("Invalid JSON structure. Missing 'scenes' array.");
+        }
+      } catch (err) {
+        statusDiv.innerText = "File Parsing Error:\n" + err.message;
+        importBtn.disabled = true;
+      }
+    };
+
+    reader.readAsText(file);
+  }
+
+  // 3. Import Cameras & Generate Views
+  importBtn.addEventListener('click', async () => {
+    if (!api || parsedScenes.length === 0) return;
+
+    importBtn.disabled = true;
+    
+    for (let i = 0; i < parsedScenes.length; i++) {
+      const item = parsedScenes[i];
+      const cam = item.camera;
+      
+      statusDiv.innerText = `Processing scene [${i + 1}/${parsedScenes.length}]: ${item.scene_name}...`;
+
+      try {
+        // Step 3a: Update viewer camera view
+        await api.viewer.setCamera({
+          position: {
+            x: cam.eye[0],
+            y: cam.eye[1],
+            z: cam.eye[2]
+          },
+          lookAt: {
+            x: cam.target[0],
+            y: cam.target[1],
+            z: cam.target[2]
+          },
+          projectionType: item.is_perspective ? "perspective" : "orthographic",
+          fieldOfView: item.fov || 60
+        });
+
+        // Small delay to allow viewer camera matrix to update smoothly
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        // Step 3b: Save state as a Trimble Connect View
+        await api.views.createView({
+          title: item.scene_name,
+          description: `Imported from SketchUp Scene (${item.scene_name})`
+        });
+
+      } catch (err) {
+        console.error(`Failed to create view for ${item.scene_name}`, err);
+      }
+    }
+
+    statusDiv.innerText = `Done! Successfully imported ${parsedScenes.length} scenes into Trimble Connect Views.`;
+    importBtn.disabled = false;
+  });
+
+  // Start initialization
+  initAPI();
+</script>
+
+</body>
+</html>
