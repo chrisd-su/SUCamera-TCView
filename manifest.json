@@ -4,10 +4,10 @@
   "version": "1.0.0",
   "description": "Import camera coordinates from SketchUp JSON and create Trimble Connect Views.",
   "publisher": {
-    "name": "Your Company Name",
-    "url": "https://your-company.com"
+    "name": "How2SU",
+    "url": "https://sketchup.com"
   },
-  "entryPoint": "https://your-domain.com/index.html",
+  "entryPoint": "https://chrisd-su.github.io/SUCamera-TCView/index.html",
   "extensionPoints": [
     {
       "type": "VIEWER_SIDE_PANEL",
